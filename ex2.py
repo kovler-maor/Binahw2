@@ -1,6 +1,6 @@
 import itertools
-from copy import deepcopy
 import random as rnd
+from copy import deepcopy
 
 ids = ["313598674", "312239296"]
 
@@ -451,7 +451,9 @@ class OptimalPirateAgent:
         for marine in marines:
             marine_info = marines[marine]
             marine_options = []
-            if marine_info["index"] == 0:
+            if len(marine_info["path"]) == 1:
+                marine_options.append(self.generate_single_marine_dict(marine, 0))
+            elif marine_info["index"] == 0:
                 marine_options.append(self.generate_single_marine_dict(marine, 0))
                 marine_options.append(self.generate_single_marine_dict(marine, 1))
             elif marine_info["index"] == len(marine_info["path"]) - 1:
@@ -536,13 +538,80 @@ class OptimalPirateAgent:
     def reward(self, state, action):
         """
         A function that returns the reward of the action in the state
-        :param state: dictionary of the state
-        :param action: tuple of the action
-        :return: the reward of the action in the state
+        point given for each state as such:
+            1. Successfully retrieving a treasure to base: 4 points.
+            2. Resetting the environment: -2 points.
+            3. Encountering a marine:
+                 -1 points for each ship that encounters a marine. 
+                 For example, if 2 ships encounter marines, then you get -2 points. 
+                 Applies for ships with and without treasures.  
+        :param dict state: dictionary of the state
+        :param action: tuples of the action
+        :return: the expected reward of the action in the state
         """
-        # TODO: implement the reward function
+        # initializing the reward list
+        reward = 0
+        # getting the pirate ships, marine ships and treasures
+        pirate_ships = state["pirate_ships"]
+        marine_ships = state["marine_ships"]
 
-    def transition_probability(self, state, action, next_state):
+        for act in action: 
+            # NOTE: action is a list of tuples with specific action for each ship ((...), (...))
+
+            if act[0] == "reset": # Tax for resetting the environment
+                return -2
+            
+            if act[0] == "Terminate": # Tax for resetting the environment
+                return 0
+                
+            action_type = act[0] 
+            pirate_ship = act[1]
+            if action_type == "deposit_treasure": # Reward for successfully retrieving a treasure to base    
+                maximum_capacity_of_ship = self.initial["pirate_ships"][pirate_ship]["capacity"]
+                current_capacity_of_ship = pirate_ships[pirate_ship]["capacity"]
+                number_of_treasures_on_ship = maximum_capacity_of_ship - current_capacity_of_ship
+                reward += (4 * number_of_treasures_on_ship)
+
+            if action_type == "sail":
+                pirate_ship_location = act[2]
+            else:
+                pirate_ship_location = pirate_ships[pirate_ship]["location"]
+                        
+            for marine in marine_ships.items(): # Penalty for encountering a marine
+                marine_possibilities_probability = self.get_marine_possibilities_probability(marine)
+                for item in marine_possibilities_probability.items():
+                    marine_possible_location = item[0]
+                    probability = item[1]
+                    if marine_possible_location == pirate_ship_location:
+                        reward -= 1 * probability
+
+        return reward
+
+    def get_marine_possibilities_probability(self, marine):
+        """
+        Helping function for the reward function.
+        A function that given a spasific matine and returns all his possible loction next step and the probability of each one
+        :param marine: a tuple reprisenting the marine
+        :return: a dictionary of all possible loction next step and the probability of each one
+        """
+        marine_ship = marine[0]
+        index = marine[1]["index"]
+        path = marine[1]["path"]
+
+        if len(path) == 1:
+            return {path[0]: 1}
+        
+        # check if the index is 0 or the last index
+        if index == 0:
+            return {path[index]: 0.5, path[index + 1]: 0.5}
+        
+        if index == len(path) - 1:
+            return {path[index]: 0.5, path[index - 1]: 0.5}
+            
+        else:
+            return {path[index]: 1/3, path[index - 1]: 1/3, path[index + 1]: 1/3}
+
+    def transition_probability(self, state, next_state):
         """
         A function that returns the transition probability of the action from the state to the next_state
         :param state: dictionary of the state
@@ -550,7 +619,36 @@ class OptimalPirateAgent:
         :param next_state: dictionary of the next state
         :return: the transition probability of the action from the state to the next_state
         """
-        # TODO: implement the transition probability function
+        marines = state["marine_ships"]
+        marine_prob = 1 
+        for marine in marines:
+            marine_index = marines[marine]["index"]
+            # marine can't really move
+            if len(marines[marine]["path"]) == 1:
+                continue
+            # check if the index is 0 or the last index
+            if marine_index == 0 or marine_index == len(marines[marine]["path"]) - 1:
+                marine_prob *= 0.5
+            else:
+                marine_prob *= 1/3
+
+        tresures = state["treasures"]
+        next_treasures = next_state["treasures"]
+        moving_treasure_prob = 1
+        for treasure in tresures:
+            # treasure can't really move
+            if len(tresures[treasure]["possible_locations"]) == 1:
+                continue
+            # treasure can move - check the probability of moving
+            treasure_location = tresures[treasure]["location"]
+            next_treasure_location = next_treasures[treasure]["location"]
+            if treasure_location != next_treasure_location:
+                moving_treasure_prob *= (tresures[treasure]["prob_change_location"] * 1/len(tresures[treasure]["possible_locations"]))
+            else:
+                moving_treasure_prob *= (1 - tresures[treasure]["prob_change_location"] + (1/len(tresures[treasure]["possible_locations"])))
+
+        return marine_prob * moving_treasure_prob
+
     def init_value_iteration(self):
         """
         A function that initializes the value iteration
@@ -559,6 +657,7 @@ class OptimalPirateAgent:
         for state in self.all_possible_states:
             v[state] = 0
         # we need to initialize the value of the terminal state to 0
+    
     def value_iteration(self):
         """
         A function that runs the value iteration
