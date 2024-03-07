@@ -40,7 +40,7 @@ class OptimalPirateAgent:
         state["pirate_ships"] = initial["pirate_ships"]
         state["treasures"] = initial["treasures"]
         state["marine_ships"] = initial["marine_ships"]
-        state["turns to go"] = 100
+        state["turns to go"] = initial["turns to go"]
         return state
 
     def all_possible_pirates_location(self):
