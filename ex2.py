@@ -8,12 +8,22 @@ RESET_PENALTY = 50
 MARINE_PENALTY = -1
 DEPOSIT_REWARD = 100
 
+
+class PirateAgent:
+    def __init__(self, initial):
+        self.initial = initial
+
+    def act(self, state):
+        raise NotImplemented
+
+
 class OptimalPirateAgent:
     def __init__(self, initial):
         our_state = self.build_state(initial)
         self.initial = our_state
         self.all_possible_states = self.generate_all_possible_states()
         self.V = {}
+        self.turns = our_state["turns to go"]
 
     # FUNCTIONS FOR CREATING ALL THE POSSIBLE STATES
     # ----------------------------------------------
@@ -228,12 +238,10 @@ class OptimalPirateAgent:
         !!!! it is very expensive to generate all possible states maybe we should generate them on the fly????
         """
         # initializing the all_possible_states dictionary
-        all_possible_states = dict()
+        all_possible_states = []
         # creating a key for each turn to go
         turns = self.all_turns_to_go()
         for turn in turns:
-            all_possible_states[turn] = []
-
         # setting the constants
         optimal = self.initial["optimal"]
         infinite = self.initial["infinite"]
@@ -279,11 +287,8 @@ class OptimalPirateAgent:
                             }
                             # adding the state to the all_possible_states dictionary under the key of the number of
                             # turns
-                            all_possible_states[turns].append(state)
+                            all_possible_states.append(str(state))
         return all_possible_states
-
-    def get_all_possible_states(self):  ### TESTING FUNCTION
-        return self.all_possible_states
 
     # END OF FUNCTIONS FOR CREATING ALL THE POSSIBLE STATES
     # ----------------------------------------------
@@ -512,7 +517,8 @@ class OptimalPirateAgent:
         A function that returns all possible outcomes of the state from taking the action
         :param state: dictionary of the current state
         :param action: tuple of the action
-        :return: list of all possible outcomes of the state (list of dictionaries)
+        :return: list of all possible outcomes of the state
+                    (list of strings that represent the dictionaries of the states)
         """
         all_possible_outcomes = []
         new_state = self.generate_atomic_actions_result(state, action)
@@ -520,7 +526,7 @@ class OptimalPirateAgent:
             for treasure_possibility in self.generate_treasure_possibilities(state):
                 new_state["marine_ships"].update(marine_possibility)
                 new_state["treasures"].update(treasure_possibility)
-                all_possible_outcomes.append(new_state)
+                all_possible_outcomes.append(str(new_state))
         return all_possible_outcomes
 
     def generate_all_legal_outcomes(self, state):
@@ -542,9 +548,9 @@ class OptimalPirateAgent:
             1. Successfully retrieving a treasure to base: 4 points.
             2. Resetting the environment: -2 points.
             3. Encountering a marine:
-                 -1 points for each ship that encounters a marine. 
-                 For example, if 2 ships encounter marines, then you get -2 points. 
-                 Applies for ships with and without treasures.  
+                 -1 points for each ship that encounters a marine.
+                 For example, if 2 ships encounter marines, then you get -2 points.
+                 Applies for ships with and without treasures.
         :param dict state: dictionary of the state
         :param action: tuples of the action
         :return: the expected reward of the action in the state
@@ -555,18 +561,18 @@ class OptimalPirateAgent:
         pirate_ships = state["pirate_ships"]
         marine_ships = state["marine_ships"]
 
-        for act in action: 
+        for act in action:
             # NOTE: action is a list of tuples with specific action for each ship ((...), (...))
 
-            if act[0] == "reset": # Tax for resetting the environment
+            if act[0] == "reset":  # Tax for resetting the environment
                 return -2
-            
-            if act[0] == "Terminate": # Tax for resetting the environment
+
+            if act[0] == "Terminate":  # Tax for resetting the environment
                 return 0
-                
-            action_type = act[0] 
+
+            action_type = act[0]
             pirate_ship = act[1]
-            if action_type == "deposit_treasure": # Reward for successfully retrieving a treasure to base    
+            if action_type == "deposit_treasure":  # Reward for successfully retrieving a treasure to base
                 maximum_capacity_of_ship = self.initial["pirate_ships"][pirate_ship]["capacity"]
                 current_capacity_of_ship = pirate_ships[pirate_ship]["capacity"]
                 number_of_treasures_on_ship = maximum_capacity_of_ship - current_capacity_of_ship
@@ -576,8 +582,8 @@ class OptimalPirateAgent:
                 pirate_ship_location = act[2]
             else:
                 pirate_ship_location = pirate_ships[pirate_ship]["location"]
-                        
-            for marine in marine_ships.items(): # Penalty for encountering a marine
+
+            for marine in marine_ships.items():  # Penalty for encountering a marine
                 marine_possibilities_probability = self.get_marine_possibilities_probability(marine)
                 for item in marine_possibilities_probability.items():
                     marine_possible_location = item[0]
@@ -600,16 +606,16 @@ class OptimalPirateAgent:
 
         if len(path) == 1:
             return {path[0]: 1}
-        
+
         # check if the index is 0 or the last index
         if index == 0:
             return {path[index]: 0.5, path[index + 1]: 0.5}
-        
+
         if index == len(path) - 1:
             return {path[index]: 0.5, path[index - 1]: 0.5}
-            
+
         else:
-            return {path[index]: 1/3, path[index - 1]: 1/3, path[index + 1]: 1/3}
+            return {path[index]: 1 / 3, path[index - 1]: 1 / 3, path[index + 1]: 1 / 3}
 
     def transition_probability(self, state, next_state):
         """
@@ -619,8 +625,12 @@ class OptimalPirateAgent:
         :param next_state: dictionary of the next state
         :return: the transition probability of the action from the state to the next_state
         """
+        valid_next_states = self.generate_all_legal_outcomes(state) # all possible legal outcomes of the state
+        if str(next_state) not in valid_next_states: # CHECK IF THE NEXT STATE IS A LEGAL OUTCOME!
+            return 0
+
         marines = state["marine_ships"]
-        marine_prob = 1 
+        marine_prob = 1
         for marine in marines:
             marine_index = marines[marine]["index"]
             # marine can't really move
@@ -630,53 +640,66 @@ class OptimalPirateAgent:
             if marine_index == 0 or marine_index == len(marines[marine]["path"]) - 1:
                 marine_prob *= 0.5
             else:
-                marine_prob *= 1/3
+                marine_prob *= 1 / 3
 
-        tresures = state["treasures"]
+        treasures = state["treasures"]
         next_treasures = next_state["treasures"]
         moving_treasure_prob = 1
-        for treasure in tresures:
+        for treasure in treasures:
             # treasure can't really move
-            if len(tresures[treasure]["possible_locations"]) == 1:
+            if len(treasures[treasure]["possible_locations"]) == 1:
                 continue
             # treasure can move - check the probability of moving
-            treasure_location = tresures[treasure]["location"]
+            treasure_location = treasures[treasure]["location"]
             next_treasure_location = next_treasures[treasure]["location"]
             if treasure_location != next_treasure_location:
-                moving_treasure_prob *= (tresures[treasure]["prob_change_location"] * 1/len(tresures[treasure]["possible_locations"]))
+                moving_treasure_prob *= (treasures[treasure]["prob_change_location"] * 1 / len(
+                    treasures[treasure]["possible_locations"]))
             else:
-                moving_treasure_prob *= (1 - tresures[treasure]["prob_change_location"] + (1/len(tresures[treasure]["possible_locations"])))
+                moving_treasure_prob *= (1 - treasures[treasure]["prob_change_location"] + (
+                            1 / len(treasures[treasure]["possible_locations"])))
 
         return marine_prob * moving_treasure_prob
 
-    def init_value_iteration(self):
-        """
-        A function that initializes the value iteration
-        """
-        v = {}
-        for state in self.all_possible_states:
-            v[state] = 0
-        # we need to initialize the value of the terminal state to 0
-    
     def value_iteration(self):
         """
         A function that runs the value iteration
         """
+        # Initializing the value function, so it will be V = {"string of the state": (max_value, action)}
+        # so for each state we will initialize the value to be -inf and the action to be None
+        for state in self.all_possible_states:
+            self.V[state] = (-float('inf'), None)
 
-
-
-
+        turns = 1
+        while turns <= self.turns:
+            # for each state we will update the value function
+            for state in self.all_possible_states:
+                state = eval(state)
+                max_value = -float('inf')
+                best_action = None
+                # for each VALID action we will calculate the value of the state
+                for action in self.actions(state):
+                    reward_of_state = self.reward(state, action)
+                    # for each next POSSIBLE state we will calculate the value of the state
+                    value_of_action = (reward_of_state +
+                                       sum(
+                                           self.transition_probability(state, next_state)
+                                           * self.V[str(next_state)][0]
+                                           for next_state in self.generate_all_possible_outcomes(state, action))
+                                       )
+                    if value_of_action > max_value:
+                        max_value = value_of_action
+                        best_action = action
+                self.V[state] = (max_value, best_action)
+            turns += 1
 
     def act(self, state):
-        raise NotImplemented
-
-
-class PirateAgent:
-    def __init__(self, initial):
-        self.initial = initial
-
-    def act(self, state):
-        raise NotImplemented
+        """
+        A function that returns the best action for the state
+        :param state: dictionary of the state
+        :return: the best action for the state
+        """
+        return self.V[str(state)][1]
 
 
 class InfinitePirateAgent:

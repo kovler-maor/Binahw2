@@ -69,7 +69,7 @@ small_inputs = [
 
         "turns to go": 100
     },
-        {
+    {
         "optimal": True,
         "infinite": False,
         "map": [
@@ -94,7 +94,7 @@ small_inputs = [
         "marine_ships": {'marine_1': {"index": 0,
                                       "path": [(2, 3)]},
                          'marine_2': {"index": 1,
-                                      "path": [(2, 3), (2, 2)]}}, 
+                                      "path": [(2, 3), (2, 2)]}},
         "turns to go": 99
     }
 ]
