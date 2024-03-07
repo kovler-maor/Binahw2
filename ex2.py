@@ -4,15 +4,16 @@ import random as rnd
 
 ids = ["313598674", "312239296"]
 
+RESET_PENALTY = 50
+MARINE_PENALTY = -1
+DEPOSIT_REWARD = 100
 
 class OptimalPirateAgent:
     def __init__(self, initial):
         our_state = self.build_state(initial)
         self.initial = our_state
         self.all_possible_states = self.generate_all_possible_states()
-        # self.initial_value_vector = self.get_initial_values_vector()
-        # self.policy_vactor=dict()
-        # self.value_iteration()
+        self.V = {}
 
     # FUNCTIONS FOR CREATING ALL THE POSSIBLE STATES
     # ----------------------------------------------
@@ -532,13 +533,36 @@ class OptimalPirateAgent:
             all_legal_outcomes.extend(self.generate_all_possible_outcomes(state, action))
         return all_legal_outcomes
 
-    def reward(self, state, action, next_state):
+    def reward(self, state, action):
+        """
+        A function that returns the reward of the action in the state
+        :param state: dictionary of the state
+        :param action: tuple of the action
+        :return: the reward of the action in the state
+        """
         # TODO: implement the reward function
 
+    def transition_probability(self, state, action, next_state):
+        """
+        A function that returns the transition probability of the action from the state to the next_state
+        :param state: dictionary of the state
+        :param action: tuple of the action
+        :param next_state: dictionary of the next state
+        :return: the transition probability of the action from the state to the next_state
+        """
+        # TODO: implement the transition probability function
     def init_value_iteration(self):
-        # TODO: implement the init value iteration algorithm
+        """
+        A function that initializes the value iteration
+        """
+        v = {}
+        for state in self.all_possible_states:
+            v[state] = 0
+        # we need to initialize the value of the terminal state to 0
     def value_iteration(self):
-        # TODO: implement the value iteration algorithm
+        """
+        A function that runs the value iteration
+        """
 
 
 
