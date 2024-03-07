@@ -63,7 +63,7 @@ small_inputs = [
                                      "prob_change_location": 0.5}
                       },
         "marine_ships": {'marine_1': {"index": 0,
-                                      "path": [(0, 1)]},
+                                      "path": [(0, 1), (0, 2)]},
                          'marine_2': {"index": 0,
                                       "path": [(2, 3), (2, 2)]}},
 
