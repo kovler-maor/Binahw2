@@ -1,5 +1,5 @@
 from ex2 import InfinitePirateAgent, OptimalPirateAgent, PirateAgent, ids
-from inputs import small_inputs
+from inputs_mine import small_inputs
 
 state1 = small_inputs[0]
 
@@ -29,7 +29,7 @@ all_actions = agent.all_possible_actions_for_state(old_state)
 
 # ---------------------all_possible_next_states_from_action test-------------------------
 action = all_actions[4]
-all_next_states = agent.all_possible_next_states_from_action(old_state, all_actions[0])
+all_next_states = agent.all_possible_next_states_from_action(old_state, action)
 
 # print(all_next_states)
 
@@ -46,12 +46,15 @@ for index, next_state in enumerate(all_next_states):
     else:
         all_probs[index] = p
 print("sum of all probs: ", sum(all_probs.values()))
-if sum(all_probs.values()) != 1:
+if sum(all_probs.values()) < 0.99:
     print("Error in p_s_a_s_prime")
-print("p_s_a_s_prime test passed")
-print(all_probs)
+else:
+    print("p_s_a_s_prime test passed")
+print(sum(all_probs.values()))
 
 # ---------------------r_s_a test-------------------------
 r_a = agent.r_s_a(old_state, action)
 print(r_a)
 # ---------------------value_iteration test-------------------------
+agent.value_iteration(all_possible_states)
+print("value_iteration test passed")

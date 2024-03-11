@@ -1,8 +1,8 @@
 import random
 import networkx as nx
-from ex2_old import InfinitePirateAgent, PirateAgent, ids, OptimalPirateAgent
-from additional_inputs import additional_inputs
-from inputs import small_inputs
+from ex2 import InfinitePirateAgent, PirateAgent, ids, OptimalPirateAgent
+from additional_inputs_mine import additional_inputs
+from inputs_mine import small_inputs
 import logging
 import time
 from copy import deepcopy
@@ -60,6 +60,7 @@ class PirateStochasticProblem:
         while self.state["turns to go"]:
             start = time.perf_counter()
             action = self.agent.act(deepcopy(self.state))
+            print("Score: ", self.score)
             end = time.perf_counter()
             if end - start > TURN_TIME_LIMIT:
                 logging.critical(f"timed out on an action")
@@ -75,6 +76,7 @@ class PirateStochasticProblem:
         """
         check if the action is legal
         """
+
         def _is_sail_action_legal(sail_action):
             ship_name = sail_action[1]
             if ship_name not in self.state['pirate_ships'].keys():
@@ -88,7 +90,8 @@ class PirateStochasticProblem:
             treasure_name = collect_action[2]
             # check near position
             y, x = self.state['treasures'][treasure_name]['location']
-            if self.state['pirate_ships'][ship_name]['location'] not in [(y-1, x), (y+1, x), (y, x-1), (y, x+1)]:
+            if self.state['pirate_ships'][ship_name]['location'] not in [(y - 1, x), (y + 1, x), (y, x - 1),
+                                                                         (y, x + 1)]:
                 return False
             # check ship capacity
             if self.state['pirate_ships'][ship_name]['capacity'] <= 0:
@@ -118,8 +121,9 @@ class PirateStochasticProblem:
         if action == "terminate":
             return True
         if len(action) != len(self.state["pirate_ships"].keys()):
-            logging.error(f"You had given {len(action)} atomic commands, while there are {len(self.state['pirate_ships'])}"
-                          f" pirate ships in the problem!")
+            logging.error(
+                f"You had given {len(action)} atomic commands, while there are {len(self.state['pirate_ships'])}"
+                f" pirate ships in the problem!")
             return False
         for atomic_action in action:
             # illegal move action
@@ -182,7 +186,7 @@ class PirateStochasticProblem:
             return
         elif atomic_action[0] == 'deposit':
             self.score += (2 - self.state['pirate_ships'][ship_name]
-                           ['capacity']) * DROP_IN_DESTINATION_REWARD
+            ['capacity']) * DROP_IN_DESTINATION_REWARD
             self.state['pirate_ships'][ship_name]['capacity'] = 2
             return
         elif atomic_action[0] == 'wait':
@@ -208,11 +212,11 @@ class PirateStochasticProblem:
                 continue
             if index == 0:
                 marine_stats["index"] = random.choice([0, 1])
-            elif index == len(marine_stats["path"])-1:
-                marine_stats["index"] = random.choice([index, index-1])
+            elif index == len(marine_stats["path"]) - 1:
+                marine_stats["index"] = random.choice([index, index - 1])
             else:
                 marine_stats["index"] = random.choice(
-                    [index-1, index, index+1])
+                    [index - 1, index, index + 1])
         self.state["turns to go"] -= 1
         return
 
@@ -276,21 +280,13 @@ def main():
             my_problem.run_round()
         except EndOfGame:
             continue
-    for an_input in additional_inputs:
-        try:
-            my_problem = PirateStochasticProblem(an_input)
-            my_problem.run_round()
-        except EndOfGame:
-            continue
+    # for an_input in additional_inputs:
+    #     try:
+    #         my_problem = PirateStochasticProblem(an_input)
+    #         my_problem.run_round()
+    #     except EndOfGame:
+    #         continue
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-

@@ -11,7 +11,8 @@ class OptimalPirateAgent:
     def __init__(self, initial):
         self.initial = initial
         self.V = {}
-        # self.value_iteration(self.generate_all_valid_states())
+        self.turn = deepcopy(self.initial["turns to go"])
+        self.value_iteration(self.generate_all_states())
 
     def all_pirate_ships_combos(self):
         game_map = self.initial["map"]
@@ -232,14 +233,14 @@ class OptimalPirateAgent:
                 if ((abs(pirate_ship_position[0] - treasure_position[0]) + abs(
                         pirate_ship_position[1] - treasure_position[1]) == 1)
                         and ship_capacity > 0):
-                    ship_actions.append(("collect_treasure", pirate_ship, treasure))
+                    ship_actions.append(("collect", pirate_ship, treasure))
             # End of COLLECT TREASURE action
             # ------------------------------------------------------
 
             # Check if the pirate ship can Deposit TREASURE from the current position
             # ------------------------------------------------------
             if state["map"][pirate_ship_position[0]][pirate_ship_position[1]] == "B":
-                ship_actions.append(("deposit_treasure", pirate_ship))
+                ship_actions.append(("deposit", pirate_ship))
             # End of DEPOSIT TREASURE action
             # ------------------------------------------------------
 
@@ -249,10 +250,8 @@ class OptimalPirateAgent:
             # End of WAIT action
             # ------------------------------------------------------
             available_actions.append(ship_actions)
-
-        all_actions = list(itertools.product(*available_actions))
-        all_actions.append((("Terminate",),))
-        all_actions.append((("reset",),))
+        all_actions = [(("Terminate",),), (("reset",),)]
+        all_actions.extend(itertools.product(*available_actions))
         return list(all_actions)
 
     def all_possible_next_states_from_action(self, state: dict, action: tuple):
@@ -270,13 +269,14 @@ class OptimalPirateAgent:
 
         initial_state = {"pirate_ships": deepcopy(state["pirate_ships"]), "treasures": deepcopy(state["treasures"]),
                          "marine_ships": deepcopy(state["marine_ships"]), "map": deepcopy(state["map"])}
-
-        for act in action:
-            if act[0] == "reset":
-                new_state = deepcopy(self.initial)
-                next_states.append(initial_state)
-            else:
-                new_state = deepcopy(state)
+        if action[0][0] == "reset":
+            new_state = deepcopy(self.initial)
+            next_states.append(initial_state)
+        elif action[0][0] == "Terminate":
+            pass
+        else:
+            new_state = deepcopy(state)
+            for act in action:
                 action_type = act[0]
                 pirate_ship = act[1]
                 pirate_ship_position = pirate_ships[pirate_ship]["location"]
@@ -284,40 +284,58 @@ class OptimalPirateAgent:
                     new_state = state.copy()
                     new_state["pirate_ships"][pirate_ship]["location"] = act[2]
 
-                if action_type == "collect_treasure":
+                if action_type == "collect":
                     new_state = state.copy()
                     new_state["pirate_ships"][pirate_ship]["capacity"] -= 1
 
-                if action_type == "deposit_treasure":
+                if action_type == "deposit":
                     new_state = state.copy()
                     new_state["pirate_ships"][pirate_ship]["capacity"] = \
                         self.initial["pirate_ships"][pirate_ship]["capacity"]
 
                 if action_type == "wait":
-                    continue
+                    pass
 
-        marines = self.initial["marine_ships"]
-        all_possible_locations = []
-        for marine in marines:
-            path = marines[marine]["path"]
-            all_possible_locations.append(list(range(0, len(path))))
-        marines_locations = list(itertools.product(*all_possible_locations))
+            # Checking encounters with marines
+            marine_ships_locations =\
+                [marine_ships[marine]["path"][marine_ships[marine]["index"]] for marine in marine_ships]
+            for pirate_ship in pirate_ships:
+                pirate_ship_location = pirate_ships[pirate_ship]["location"]
+                if pirate_ship_location in marine_ships_locations:
+                    initial_capacity = self.initial["pirate_ships"][pirate_ship]["capacity"]
+                    new_state["pirate_ships"][pirate_ship]["capacity"] = initial_capacity
 
-        treasures = self.initial["treasures"]
-        all_possible_locations = []
-        for treasure in treasures:
-            possible_locations = treasures[treasure]["possible_locations"]
-            all_possible_locations.append(possible_locations)
-        treasures_locations = list(itertools.product(*all_possible_locations))
+            marines = new_state["marine_ships"]
+            all_possible_locations = []
+            for marine in marines:
+                path = marines[marine]["path"]
+                index = marines[marine]["index"]
+                if len(path) == 1:
+                    all_possible_locations.append([index])
+                else:
+                    if index == 0:
+                        all_possible_locations.append([index, index + 1])
+                    elif index == len(path) - 1:
+                        all_possible_locations.append([index, index - 1])
+                    else:
+                        all_possible_locations.append([index - 1, index, index + 1])
+            marines_locations = list(itertools.product(*all_possible_locations))
 
-        for marines_locations in marines_locations:
-            for treasures_location in treasures_locations:
-                new_state = deepcopy(state)
-                for place, marine in enumerate(marines):
-                    new_state["marine_ships"][marine]["index"] = marines_locations[place]
-                for place, treasure in enumerate(treasures):
-                    new_state["treasures"][treasure]["location"] = treasures_location[place]
-                next_states.append(new_state)
+            treasures = self.initial["treasures"]
+            all_possible_locations = []
+            for treasure in treasures:
+                possible_locations = treasures[treasure]["possible_locations"]
+                all_possible_locations.append(possible_locations)
+            treasures_locations = list(itertools.product(*all_possible_locations))
+
+            for marines_locations in marines_locations:
+                for treasures_location in treasures_locations:
+                    new_state = deepcopy(state)
+                    for place, marine in enumerate(marines):
+                        new_state["marine_ships"][marine]["index"] = marines_locations[place]
+                    for place, treasure in enumerate(treasures):
+                        new_state["treasures"][treasure]["location"] = treasures_location[place]
+                    next_states.append(new_state)
 
         return next_states
 
@@ -367,7 +385,8 @@ class OptimalPirateAgent:
             else:
                 marine_ships_transition_probability *= 1 / 3
         # ----------------------------------------------------------------
-        return treasures_transition_probability * marine_ships_transition_probability
+        p = treasures_transition_probability * marine_ships_transition_probability
+        return p
 
     def r_s_a(self, state: dict, action: tuple):
         """
@@ -420,7 +439,7 @@ class OptimalPirateAgent:
 
             action_type = act[0]
             pirate_ship = act[1]
-            if action_type == "deposit_treasure":  # Reward for successfully retrieving a treasure to base
+            if action_type == "deposit":  # Reward for successfully retrieving a treasure to base
                 maximum_capacity_of_ship = self.initial["pirate_ships"][pirate_ship]["capacity"]
                 current_capacity_of_ship = pirate_ships[pirate_ship]["capacity"]
                 number_of_treasures_on_ship = maximum_capacity_of_ship - current_capacity_of_ship
@@ -435,7 +454,7 @@ class OptimalPirateAgent:
         """
         V = {}
         for state in states:
-            self.V[state, 0] = {"max_value": 0, "max_action": None}
+            V[state, 0] = {"max_value": 0, "max_action": None}
         self.V = V
 
     def value_iteration(self, states: list):
@@ -450,27 +469,56 @@ class OptimalPirateAgent:
         turns = 1
         while turns <= self.initial["turns to go"]:
             for state in states:
+                state = self.old_representation(state)
                 max_value = float("-inf")
                 max_action = None
-                for action in self.all_possible_actions_for_state(state):
+                A = self.all_possible_actions_for_state(state)
+                for action in A:
                     value = 0
                     # R(s, a)
                     reward = self.r_s_a(state, action)
                     # sum(P(s'|s, a) * V(s'))
-                    sum_of_transition_probabilities = 0
-                    for next_state in self.all_possible_next_states_from_action(state, action):
-                        # P(s'|s, a) * V(s')
-                        sum_of_transition_probabilities += (
-                                self.p_s_a_s_prime(state, next_state) * self.V[next_state, turns - 1]["max_value"])
+                    if action[0][0] == "reset":
+                        value = (RESET_ENVIRONMENT_PENALTY +
+                                 self.V[self.new_representation(self.initial), turns - 1]["max_value"])
+                        if value >= max_value:
+                            max_value = value
+                            max_action = action
+                    else:
+                        sum_of_transition_probabilities = 0
+                        for next_state in self.all_possible_next_states_from_action(state, action):
+                            # P(s'|s, a) * V(s')
+                            sum_of_transition_probabilities += \
+                                (
+                                        self.p_s_a_s_prime(state, next_state) *
+                                        self.V[self.new_representation(next_state), turns - 1]["max_value"]
+                                )
+                        value = reward + sum_of_transition_probabilities
 
-                    if value >= max_value:
-                        max_value = value
-                        max_action = action
+                        if value >= max_value:
+                            max_value = value
+                            max_action = action
+
+                state = self.new_representation(state)
                 self.V[state, turns] = {"max_value": max_value, "max_action": max_action}
+
             turns += 1
 
     def act(self, state):
-        raise NotImplemented
+        turn = state["turns to go"]
+        state = self.new_representation(state)
+        act = self.V[state, turn]["max_action"]
+        print(f"-------------------{turn}-------------------")
+        print(f"Pirate ship: {self.old_representation(state)['pirate_ships']}")
+        print(f"State: {self.old_representation(state)}")
+        print(f"Act: {act}")
+
+        if act[0][0] == "deposit":
+            print(f"Deposited")
+        if self.old_representation(state)["pirate_ships"]["pirate_ship_1"]["location"] == (2, 3):
+            print(f"Encountered a marine")
+
+        return act
 
 
 class PirateAgent:
