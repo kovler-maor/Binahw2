@@ -1,9 +1,8 @@
 import random
 import networkx as nx
 from ex2 import InfinitePirateAgent, PirateAgent, ids, OptimalPirateAgent
-from additional_inputs_mine import additional_inputs
-from inputs_mine import small_inputs
-import logging
+from inputs import small_inputs
+from additional_inputs import additional_inputs
 import time
 from copy import deepcopy
 
@@ -60,7 +59,6 @@ class PirateStochasticProblem:
         while self.state["turns to go"]:
             start = time.perf_counter()
             action = self.agent.act(deepcopy(self.state))
-            print("Score: ", self.score)
             end = time.perf_counter()
             if end - start > TURN_TIME_LIMIT:
                 logging.critical(f"timed out on an action")
@@ -280,12 +278,12 @@ def main():
             my_problem.run_round()
         except EndOfGame:
             continue
-    # for an_input in additional_inputs:
-    #     try:
-    #         my_problem = PirateStochasticProblem(an_input)
-    #         my_problem.run_round()
-    #     except EndOfGame:
-    #         continue
+    for an_input in additional_inputs:
+        try:
+            my_problem = PirateStochasticProblem(an_input)
+            my_problem.run_round()
+        except EndOfGame:
+            continue
 
 
 if __name__ == '__main__':
